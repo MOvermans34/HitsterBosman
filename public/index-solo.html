@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tijdmachine</title>
+<style>
+  :root{
+    --bg:#12101c; --panel:#1d1a2b; --panel2:#272339; --text:#f3f0ff; --muted:#a39dbd;
+    --accent:#ff4f8b; --accent2:#ffc23d; --ok:#2fd27a; --bad:#ff5a5a; --line:#38324f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#3a1f5a 0%,transparent 60%),var(--bg);
+    color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+  main{max-width:1100px;margin:0 auto;padding:16px}
+  h1{font-size:28px;margin:8px 0 4px;letter-spacing:.5px}
+  h1 span{color:var(--accent)}
+  h2{font-size:18px;margin:0 0 10px}
+  a{color:var(--accent2)}
+  .muted{color:var(--muted)} .small{font-size:13px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .grid{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:860px){.grid.two{grid-template-columns:1fr 1fr}.grid.game{grid-template-columns:1fr 280px}}
+  input[type=text],input[type=number],select{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;font:inherit;min-width:0}
+  input[type=text]{flex:1}
+  button{font:inherit;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  button:hover{filter:brightness(1.15)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.gold{background:var(--accent2);border-color:var(--accent2);color:#2a1d00;font-weight:600}
+  button.big{padding:14px 22px;font-size:18px}
+  code{background:var(--panel2);padding:2px 6px;border-radius:6px;word-break:break-all}
+  .err{background:#4a1f2a;border:1px solid var(--bad);padding:10px 12px;border-radius:10px;margin:10px 0}
+  .pl-list{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .pl{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer}
+  .pl:last-child{border-bottom:0}
+  .pl img,.pl .ph{width:40px;height:40px;border-radius:6px;object-fit:cover;background:var(--panel2);flex:none}
+  .pl input{width:18px;height:18px;flex:none}
+  .pl .t{flex:1;min-width:0}.pl .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .player-row{display:flex;gap:8px;margin-bottom:6px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .devbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}
+  .devbar select{max-width:230px}
+  /* Song panel */
+  .stage{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .disc{width:130px;height:130px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:44px;font-weight:800;
+    background:repeating-radial-gradient(circle,#111 0 3px,#1c1c1c 3px 6px);border:3px solid #000;position:relative;box-shadow:0 8px 30px #0008}
+  .disc::after{content:"";position:absolute;width:44px;height:44px;border-radius:50%;background:var(--accent)}
+  .disc span{position:relative;z-index:1;color:#fff}
+  .disc.spin{animation:spin 2.4s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cover{width:130px;height:130px;border-radius:12px;object-fit:cover;flex:none;box-shadow:0 8px 30px #0008}
+  .reveal-year{font-size:46px;font-weight:800;line-height:1}
+  .verdict{font-weight:800;font-size:22px}
+  .verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+  /* Timeline */
+  .timeline{display:flex;gap:6px;align-items:stretch;overflow-x:auto;padding:8px 2px 14px}
+  .card{flex:none;width:118px;min-height:132px;border-radius:12px;padding:10px 8px;display:flex;flex-direction:column;
+    justify-content:space-between;text-align:center;color:#160f20;box-shadow:0 4px 14px #0006}
+  .card .y{font-size:30px;font-weight:800}
+  .card .a{font-size:12px;font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .card .n{font-size:12px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;opacity:.85}
+  .card.new{outline:4px solid var(--ok);outline-offset:2px}
+  .card.wrong{outline:4px solid var(--bad);outline-offset:2px;opacity:.9}
+  .slot{flex:none;width:34px;min-height:132px;border-radius:10px;border:2px dashed var(--line);background:transparent;color:var(--muted);font-size:20px;padding:0}
+  .slot:hover{border-color:var(--accent);color:var(--accent)}
+  .slot.sel{width:118px;border:3px solid var(--accent);background:#ff4f8b22;color:var(--accent);font-size:44px;font-weight:800}
+  /* Scoreboard */
+  .sb{display:flex;flex-direction:column;gap:8px}
+  .sb .p{background:var(--panel2);border-radius:10px;padding:10px;border:2px solid transparent}
+  .sb .p.cur{border-color:var(--accent)}
+  .bar{height:7px;background:#0005;border-radius:4px;overflow:hidden;margin:6px 0}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .chips{display:flex;flex-wrap:wrap;gap:3px}
+  .chip{font-size:11px;padding:1px 5px;border-radius:5px;color:#160f20;font-weight:700}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000d;color:#fff;padding:10px 16px;border-radius:10px;
+    max-width:90vw;display:none;z-index:9}
+  .winner{font-size:34px;font-weight:800;text-align:center;margin:10px 0}
+  ol.steps li{margin-bottom:8px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div id="toast"></div>
+<script>
+/* =========================================================
+   Tijdmachine — muziek-tijdlijnspel met Spotify
+   Volledig client-side (Spotify PKCE-login), geen server nodig.
+   ========================================================= */
+const SCOPES = [
+  'streaming', 'user-read-email', 'user-read-private',
+  'user-read-playback-state', 'user-modify-playback-state',
+  'playlist-read-private', 'playlist-read-collaborative'
+].join(' ');
+const REDIRECT = location.origin + location.pathname;
+
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem('tm_' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('tm_' + k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem('tm_' + k); } catch {} }
+};
+
+let clientId = LS.get('clientId', '');
+let auth = LS.get('auth', null);            // {access, refresh, expires}
+let view = 'setup';                          // setup | lobby | game
+let me = null;
+let playlists = null;                        // eigen playlists van /me/playlists
+let extraPlaylists = LS.get('extraPlaylists', []); // via link toegevoegd [{id,name}]
+let selected = new Set(LS.get('selPlaylists', []));
+let playerNames = LS.get('playerNames', ['Speler 1', 'Speler 2']);
+let settings = Object.assign({ target: 10, tokens: 2, skipIntro: true, noCompilations: true }, LS.get('settings', {}));
+let game = LS.get('game', null);
+let yearFixes = LS.get('yearFixes', {});
+let plFilter = '';
+let busy = '', error = '';
+
+// afspelen
+let deviceId = LS.get('deviceId', 'web');
+let webDeviceId = null, sdkPlayer = null, sdkStatus = 'Browserspeler laden…';
+let devices = [];
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const yearColor = y => `hsl(${(((y - 1950) * 5) % 360 + 360) % 360} 85% 72%)`;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 4500); }
+function save() { LS.set('game', game); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+/* ---------------- Spotify login (PKCE) ---------------- */
+function b64url(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+async function login() {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  LS.set('verifier', verifier);
+  const p = new URLSearchParams({ response_type: 'code', client_id: clientId, scope: SCOPES,
+    code_challenge_method: 'S256', code_challenge: challenge, redirect_uri: REDIRECT });
+  location.href = 'https://accounts.spotify.com/authorize?' + p;
+}
+
+async function tokenRequest(params) {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: clientId, ...params })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error_description || j.error || ('Tokenfout ' + r.status));
+  auth = { access: j.access_token, refresh: j.refresh_token || auth?.refresh, expires: Date.now() + (j.expires_in - 60) * 1000 };
+  LS.set('auth', auth);
+}
+
+async function handleRedirect() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('error')) { error = 'Inloggen afgebroken: ' + q.get('error'); history.replaceState(null, '', REDIRECT); return; }
+  const code = q.get('code');
+  if (!code) return;
+  history.replaceState(null, '', REDIRECT);
+  await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT, code_verifier: LS.get('verifier', '') });
+}
+
+async function getToken() {
+  if (!auth) throw new Error('Niet ingelogd');
+  if (Date.now() > auth.expires) await tokenRequest({ grant_type: 'refresh_token', refresh_token: auth.refresh });
+  return auth.access;
+}
+
+async function api(path, opts = {}, retry = true) {
+  const url = path.startsWith('http') ? path : 'https://api.spotify.com/v1' + path;
+  const headers = { Authorization: 'Bearer ' + await getToken() };
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(url, { ...opts, headers });
+  if (r.status === 401 && retry && auth?.refresh) { auth.expires = 0; return api(path, opts, false); }
+  if (r.status === 204 || r.status === 202) return null;
+  const text = await r.text(); let j = null; try { j = text ? JSON.parse(text) : null; } catch {}
+  if (!r.ok) {
+    const e = new Error(j?.error?.message || text || ('HTTP ' + r.status));
+    e.status = r.status; e.reason = j?.error?.reason; throw e;
+  }
+  return j;
+}
+
+function logout() {
+  auth = null; LS.del('auth'); me = null; playlists = null;
+  try { sdkPlayer?.disconnect(); } catch {}
+  view = 'setup'; render();
+}
+
+/* ---------------- Playlists & nummers ---------------- */
+async function loadPlaylists() {
+  const out = []; let next = '/me/playlists?limit=50';
+  while (next) { const j = await api(next); out.push(...(j.items || []).filter(Boolean)); next = j.next; }
+  playlists = out;
+}
+
+function parsePlaylistId(s) {
+  s = s.trim();
+  const m = s.match(/playlist[/:]([A-Za-z0-9]{10,})/);
+  if (m) return m[1];
+  return /^[A-Za-z0-9]{10,}$/.test(s) ? s : null;
+}
+
+function toCard(t) {
+  if (!t || t.type !== 'track' || t.is_local || !t.uri || !t.album) return null;
+  const y = parseInt((t.album.release_date || '').slice(0, 4), 10);
+  if (!y) return null;
+  return {
+    id: t.id, uri: t.uri, name: t.name,
+    artists: (t.artists || []).map(a => a.name).join(', '),
+    year: yearFixes[t.id] ?? y, album: t.album.name,
+    img: (t.album.images || [])[0]?.url || '',
+    comp: t.album.album_type === 'compilation', dur: t.duration_ms || 0
+  };
+}
+
+async function loadPlaylistTracks(id) {
+  const out = [];
+  async function collect(next) {
+    while (next) {
+      const j = await api(next);
+      for (const it of j.items || []) { const c = toCard(it.item || it.track); if (c) out.push(c); }
+      next = j.next;
+    }
+  }
+  try { await collect(`/playlists/${id}/items?limit=50`); }
+  catch (e) {
+    if (e.status === 404 || e.status === 400) { out.length = 0; await collect(`/playlists/${id}/tracks?limit=50`); }
+    else throw e;
+  }
+  return out;
+}
+
+function playlistName(id) {
+  return playlists?.find(p => p.id === id)?.name || extraPlaylists.find(p => p.id === id)?.name || id;
+}
+
+/* ---------------- Afspelen ---------------- */
+function initSdk() {
+  if (window._sdkLoading) return; window._sdkLoading = true;
+  window.onSpotifyWebPlaybackSDKReady = () => {
+    sdkPlayer = new Spotify.Player({ name: 'Tijdmachine', volume: 0.8,
+      getOAuthToken: cb => getToken().then(cb).catch(() => {}) });
+    sdkPlayer.addListener('ready', ({ device_id }) => { webDeviceId = device_id; sdkStatus = ''; renderDevices(); });
+    sdkPlayer.addListener('not_ready', () => { webDeviceId = null; sdkStatus = 'Browserspeler is offline.'; renderDevices(); });
+    sdkPlayer.addListener('initialization_error', () => { sdkStatus = 'Deze browser kan zelf niet afspelen (bijv. op iPhone). Kies hieronder de Spotify-app op een telefoon/speaker.'; renderDevices(); });
+    sdkPlayer.addListener('authentication_error', ({ message }) => { sdkStatus = 'Spotify-authenticatiefout: ' + message; renderDevices(); });
+    sdkPlayer.addListener('account_error', () => { sdkStatus = 'Afspelen vereist Spotify Premium.'; renderDevices(); });
+    sdkPlayer.addListener('playback_error', ({ message }) => toast('Afspeelfout: ' + message));
+    sdkPlayer.connect();
+  };
+  const s = document.createElement('script'); s.src = 'https://sdk.scdn.co/spotify-player.js'; document.head.appendChild(s);
+}
+
+async function refreshDevices() {
+  try { devices = (await api('/me/player/devices'))?.devices || []; }
+  catch (e) { toast('Apparaten ophalen mislukt: ' + e.message); }
+  renderDevices();
+}
+
+function targetDevice() { return deviceId === 'web' ? webDeviceId : deviceId; }
+
+function playErr(e) {
+  if (e.status === 404) return 'Apparaat niet gevonden. Open Spotify op dat apparaat, klik op 🔄 en kies het opnieuw.';
+  if (e.status === 403) return 'Spotify weigert afspelen (Premium nodig?): ' + e.message;
+  if (e.status === 429) return 'Te veel verzoeken aan Spotify, wacht even.';
+  return 'Afspelen mislukt: ' + e.message;
+}
+
+async function playCurrent() {
+  try { sdkPlayer?.activateElement?.(); } catch {}   // nodig voor autoplay in sommige browsers
+  const d = targetDevice();
+  if (!d) { toast(deviceId === 'web' ? (sdkStatus || 'Browserspeler is nog niet klaar.') : 'Kies eerst een afspeelapparaat.'); return; }
+  const c = game.current;
+  const body = { uris: [c.uri] };
+  if (settings.skipIntro) body.position_ms = Math.min(30000, Math.floor((c.dur || 120000) * 0.25));
+  try {
+    await api(`/me/player/play?device_id=${encodeURIComponent(d)}`, { method: 'PUT', body: JSON.stringify(body) });
+    game.playing = true;
+  } catch (e) { toast(playErr(e)); }
+  render();
+}
+
+async function pause() {
+  const d = targetDevice();
+  game.playing = false; render();
+  if (!d) return;
+  try { await api(`/me/player/pause?device_id=${encodeURIComponent(d)}`, { method: 'PUT' }); } catch {}
+}
+
+/* ---------------- Spellogica ---------------- */
+async function startGame() {
+  error = '';
+  const names = playerNames.map(n => n.trim()).filter(Boolean);
+  if (!names.length) { error = 'Voeg minstens één speler toe.'; return render(); }
+  if (!selected.size) { error = 'Kies minstens één playlist.'; return render(); }
+  busy = 'Nummers laden…'; render();
+  try {
+    let all = [];
+    for (const id of selected) {
+      busy = `Laden: ${playlistName(id)}…`; render();
+      try { all.push(...await loadPlaylistTracks(id)); }
+      catch (e) {
+        throw new Error(`Playlist "${playlistName(id)}" kon niet geladen worden (${e.status || ''} ${e.message}).` +
+          (e.status === 403 ? ' Spotify laat hobby-apps vaak alleen playlists lezen die je zelf hebt gemaakt of waaraan je meewerkt — kopieer de playlist naar je eigen account.' : ''));
+      }
+    }
+    const seen = new Set();
+    let deck = all.filter(c => {
+      const k = c.id + '|' + (c.name + c.artists).toLowerCase();
+      const k2 = (c.name.replace(/\s*[-(].*(remaster|version|edit|live|mono|stereo).*$/i, '') + '|' + c.artists).toLowerCase();
+      if (seen.has(c.id) || seen.has(k2)) return false;
+      seen.add(c.id); seen.add(k2); return true;
+    });
+    const total = deck.length;
+    if (settings.noCompilations) deck = deck.filter(c => !c.comp);
+    shuffle(deck);
+    if (deck.length < names.length * 2 + 5) {
+      throw new Error(`Te weinig bruikbare nummers (${deck.length} van ${total}). Kies meer playlists` +
+        (settings.noCompilations ? ' of zet "verzamelalbums overslaan" uit.' : '.'));
+    }
+    game = {
+      players: names.map(n => ({ name: n, cards: [deck.pop()], tokens: Number(settings.tokens) || 0 })),
+      deck, turn: 0, phase: 'listen', current: deck.pop(), slot: null, correct: null,
+      guessed: false, playing: false, target: Number(settings.target) || 10, winner: null
+    };
+    save(); view = 'game';
+  } catch (e) { error = e.message; }
+  busy = ''; render();
+}
+
+function curPlayer() { return game.players[game.turn]; }
+
+function evaluate() {
+  const cards = curPlayer().cards, i = game.slot, y = game.current.year;
+  const left = i > 0 ? cards[i - 1].year : -Infinity;
+  const right = i < cards.length ? cards[i].year : Infinity;
+  game.correct = left <= y && y <= right;
+}
+
+function insertSorted(cards, card) {
+  const i = cards.findIndex(c => c.year > card.year);
+  cards.splice(i < 0 ? cards.length : i, 0, card);
+}
+
+function drawNext() {
+  if (!game.deck.length) { endGame(); return false; }
+  game.current = game.deck.pop();
+  return true;
+}
+
+function endGame() {
+  const max = Math.max(...game.players.map(p => p.cards.length));
+  game.winner = game.players.filter(p => p.cards.length === max).map(p => p.name).join(' & ');
+  game.phase = 'over'; pause();
+}
+
+const actions = {
+  saveClient() {
+    const v = $('#clientId').value.trim();
+    if (!/^[a-f0-9]{32}$/i.test(v)) { error = 'Dat lijkt geen geldige Client ID (32 tekens).'; return render(); }
+    clientId = v; LS.set('clientId', v); error = ''; render();
+  },
+  editClient() { clientId = ''; LS.del('clientId'); render(); },
+  login() { login(); },
+  logout() { if (confirm('Uitloggen bij Spotify?')) logout(); },
+  copyRedirect() { navigator.clipboard?.writeText(REDIRECT).then(() => toast('Gekopieerd!')); },
+  addPlayer() { playerNames.push('Speler ' + (playerNames.length + 1)); LS.set('playerNames', playerNames); render(); },
+  delPlayer(el) { playerNames.splice(+el.dataset.i, 1); LS.set('playerNames', playerNames); render(); },
+  togglePl(el) {
+    const id = el.dataset.id;
+    selected.has(id) ? selected.delete(id) : selected.add(id);
+    LS.set('selPlaylists', [...selected]); renderPlaylistList(); renderSelCount();
+  },
+  async addLink() {
+    const id = parsePlaylistId($('#plLink').value);
+    if (!id) return toast('Plak een Spotify-playlistlink, bijv. https://open.spotify.com/playlist/…');
+    let name = 'Playlist ' + id.slice(0, 6) + '…';
+    try { name = (await api(`/playlists/${id}?fields=name`))?.name || name; } catch {}
+    if (!extraPlaylists.some(p => p.id === id) && !playlists?.some(p => p.id === id)) extraPlaylists.push({ id, name });
+    selected.add(id);
+    LS.set('extraPlaylists', extraPlaylists); LS.set('selPlaylists', [...selected]);
+    $('#plLink').value = ''; renderPlaylistList(); renderSelCount();
+  },
+  startGame() { startGame(); },
+  resume() { view = 'game'; render(); },
+  toLobby() {
+    if (game && game.phase !== 'over' && !confirm('Terug naar het menu? Het spel blijft bewaard.')) return;
+    pause(); view = 'lobby'; render();
+    if (!playlists) loadPlaylists().then(() => { renderPlaylistList(); }).catch(() => {});
+  },
+  newGame() { game = null; LS.del('game'); view = 'lobby'; render(); },
+  play() { playCurrent(); },
+  pause() { pause(); },
+  refreshDevices() { refreshDevices(); },
+  slot(el) { if (game.phase !== 'listen') return; game.slot = +el.dataset.i; save(); render(); },
+  confirm() {
+    if (game.slot == null) return toast('Kies eerst een plek in je tijdlijn.');
+    evaluate(); game.phase = 'reveal'; save(); render();
+  },
+  guessed() { if (game.guessed) return; game.guessed = true; curPlayer().tokens++; save(); render(); },
+  fixYear() {
+    const v = prompt(`Wat is het juiste jaar van "${game.current.name}" (${game.current.artists})?`, game.current.year);
+    const y = parseInt(v, 10);
+    if (!y || y < 1900 || y > 2100) return;
+    game.current.year = y; yearFixes[game.current.id] = y; LS.set('yearFixes', yearFixes);
+    evaluate(); save(); render();
+  },
+  skip() {
+    const p = curPlayer(); if (p.tokens < 1) return;
+    p.tokens--; game.slot = null;
+    const wasPlaying = game.playing;
+    if (drawNext()) { save(); if (wasPlaying) playCurrent(); else render(); } else render();
+  },
+  buy() {
+    const p = curPlayer(); if (p.tokens < 3 || !game.deck.length) return;
+    p.tokens -= 3; const c = game.deck.pop(); insertSorted(p.cards, c);
+    toast(`${p.name} koopt een kaart: ${c.year} — ${c.artists}`);
+    if (p.cards.length >= game.target) { game.winner = p.name; game.phase = 'over'; pause(); }
+    else if (game.slot != null && game.slot > p.cards.indexOf(c)) game.slot++;
+    save(); render();
+  },
+  next() {
+    const p = curPlayer();
+    if (game.correct) insertSorted(p.cards, game.current);
+    if (p.cards.length >= game.target) { game.winner = p.name; game.phase = 'over'; pause(); save(); return render(); }
+    game.turn = (game.turn + 1) % game.players.length;
+    game.slot = null; game.correct = null; game.guessed = false; game.phase = 'listen';
+    pause();
+    if (drawNext()) save();
+    save(); render();
+  }
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (el && !el.disabled && actions[el.dataset.act]) { e.preventDefault(); actions[el.dataset.act](el, e); }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.matches('[data-player]')) { playerNames[+t.dataset.player] = t.value; LS.set('playerNames', playerNames); }
+  else if (t.id === 'plFilter') { plFilter = t.value.toLowerCase(); renderPlaylistList(); }
+  else if (t.matches('[data-setting]')) {
+    const k = t.dataset.setting;
+    settings[k] = t.type === 'checkbox' ? t.checked : t.value; LS.set('settings', settings);
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'device') { deviceId = e.target.value; LS.set('deviceId', deviceId); }
+  else if (e.target.matches('[data-setting]')) e.target.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+/* ---------------- Weergave ---------------- */
+function render() {
+  const app = $('#app');
+  const head = `<div class="topbar"><h1>⏳ Tijd<span>machine</span></h1>
+    ${auth && me ? `<div class="row small muted">Ingelogd als ${esc(me.display_name || me.id)}
+      ${view === 'game' ? `<button data-act="toLobby">Menu</button>` : ''}<button data-act="logout">Uitloggen</button></div>` : ''}</div>`;
+  const err = error ? `<div class="err">${esc(error)}</div>` : '';
+  if (view === 'setup' || !auth) app.innerHTML = head + err + setupHTML();
+  else if (view === 'lobby') { app.innerHTML = head + err + lobbyHTML(); renderPlaylistList(); }
+  else app.innerHTML = head + err + gameHTML();
+  renderDevices();
+}
+
+function setupHTML() {
+  if (!clientId) return `<div class="panel"><h2>Eenmalig instellen</h2>
+    <p class="muted">Deze app praat rechtstreeks met Spotify vanuit je browser. Daarvoor heb je een (gratis) Spotify-ontwikkelaarsapp nodig.</p>
+    <ol class="steps">
+      <li>Ga naar <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> en log in (de eigenaar heeft Spotify Premium nodig).</li>
+      <li>Klik <b>Create app</b>. Vul een naam in, vink <b>Web API</b> en <b>Web Playback SDK</b> aan.</li>
+      <li>Zet bij <b>Redirect URIs</b> precies dit adres: <code>${esc(REDIRECT)}</code> <button data-act="copyRedirect">Kopieer</button></li>
+      <li>Voeg onder <b>User Management</b> de Spotify-accounts toe van iedereen die moet kunnen inloggen.</li>
+      <li>Kopieer de <b>Client ID</b> en plak hem hieronder.</li>
+    </ol>
+    <div class="row"><input type="text" id="clientId" placeholder="Client ID (32 tekens)"><button class="primary" data-act="saveClient">Opslaan</button></div>
+  </div>`;
+  return `<div class="panel"><h2>Inloggen</h2>
+    <p class="muted">Log in met het Spotify-account van de spelleider. Muziek speelt af op dit apparaat (of op een gekozen telefoon/speaker). Spotify Premium is nodig om af te spelen.</p>
+    <div class="row"><button class="primary big" data-act="login">Inloggen met Spotify</button>
+    <button data-act="editClient">Andere Client ID</button></div>
+    <p class="small muted">Redirect URI die in je Spotify-app moet staan: <code>${esc(REDIRECT)}</code></p></div>`;
+}
+
+function lobbyHTML() {
+  const resumable = game && game.phase !== 'over';
+  return `${resumable ? `<div class="panel row" style="justify-content:space-between"><span>Er loopt nog een spel (${game.players.map(p => esc(p.name)).join(', ')}).</span>
+      <div class="row"><button class="gold" data-act="resume">Verder spelen</button><button data-act="newGame">Weggooien</button></div></div>` : ''}
+    <div class="grid two">
+      <div class="panel"><h2>1. Spelers of teams</h2>
+        ${playerNames.map((n, i) => `<div class="player-row"><input type="text" data-player="${i}" value="${esc(n)}">
+          <button data-act="delPlayer" data-i="${i}" title="Verwijderen">✕</button></div>`).join('')}
+        <button data-act="addPlayer">+ Speler</button>
+        <h2 style="margin-top:18px">3. Instellingen</h2>
+        <div class="row" style="margin-bottom:8px"><label>Kaarten om te winnen</label><input type="number" min="3" max="30" data-setting="target" value="${esc(settings.target)}" style="width:80px"></div>
+        <div class="row" style="margin-bottom:8px"><label>Startmunten per speler</label><input type="number" min="0" max="10" data-setting="tokens" value="${esc(settings.tokens)}" style="width:80px"></div>
+        <label class="row" style="margin-bottom:6px"><input type="checkbox" data-setting="skipIntro" ${settings.skipIntro ? 'checked' : ''}> Intro overslaan (start halverwege het eerste couplet)</label>
+        <label class="row"><input type="checkbox" data-setting="noCompilations" ${settings.noCompilations ? 'checked' : ''}> Nummers van verzamelalbums overslaan (die hebben vaak een fout jaartal)</label>
+      </div>
+      <div class="panel"><h2>2. Playlists</h2>
+        <div class="row" style="margin-bottom:8px"><input type="text" id="plFilter" placeholder="Zoeken in je playlists…" value="${esc(plFilter)}"></div>
+        <div class="pl-list" id="plList"><div class="pl muted">Playlists laden…</div></div>
+        <div class="row" style="margin-top:8px"><input type="text" id="plLink" placeholder="…of plak een playlistlink"><button data-act="addLink">Toevoegen</button></div>
+        <p class="small muted" id="selCount"></p>
+      </div>
+    </div>
+    <div class="panel row" style="justify-content:space-between">
+      <div id="devices"></div>
+      <button class="primary big" data-act="startGame" ${busy ? 'disabled' : ''}>${busy ? esc(busy) : 'Start spel ▶'}</button>
+    </div>`;
+}
+
+function renderSelCount() {
+  const el = $('#selCount'); if (!el) return;
+  el.textContent = selected.size ? `${selected.size} playlist(s) gekozen: ${[...selected].map(playlistName).join(', ')}` : 'Nog geen playlist gekozen.';
+}
+
+function renderPlaylistList() {
+  const el = $('#plList'); if (!el) return;
+  renderSelCount();
+  if (!playlists) return;
+  const all = [...extraPlaylists.map(p => ({ id: p.id, name: p.name, extra: true })), ...playlists];
+  const list = all.filter(p => !plFilter || (p.name || '').toLowerCase().includes(plFilter));
+  if (!list.length) { el.innerHTML = '<div class="pl muted">Geen playlists gevonden.</div>'; return; }
+  el.innerHTML = list.map(p => {
+    const img = p.images?.[p.images.length - 1]?.url || p.images?.[0]?.url;
+    const count = p.tracks?.total ?? p.items?.total;
+    const owner = p.owner?.display_name;
+    return `<div class="pl" data-act="togglePl" data-id="${esc(p.id)}">
+      <input type="checkbox" ${selected.has(p.id) ? 'checked' : ''} tabindex="-1">
+      ${img ? `<img src="${esc(img)}" alt="">` : '<div class="ph"></div>'}
+      <div class="t"><b>${esc(p.name)}</b><span class="small muted">${p.extra ? 'via link' : [count != null ? count + ' nummers' : '', owner ? 'van ' + esc(owner) : ''].filter(Boolean).join(' · ')}</span></div></div>`;
+  }).join('');
+}
+
+function renderDevices() {
+  const el = $('#devices'); if (!el) return;
+  const opts = [`<option value="web" ${deviceId === 'web' ? 'selected' : ''}>Deze browser${webDeviceId ? '' : ' (niet klaar)'}</option>`]
+    .concat(devices.filter(d => d.id && d.id !== webDeviceId).map(d =>
+      `<option value="${esc(d.id)}" ${deviceId === d.id ? 'selected' : ''}>${esc(d.name)} (${esc(d.type)})</option>`));
+  if (deviceId !== 'web' && !devices.some(d => d.id === deviceId)) opts.push(`<option value="${esc(deviceId)}" selected>Eerder gekozen apparaat</option>`);
+  el.innerHTML = `<div class="devbar">🔊 Afspelen op <select id="device">${opts.join('')}</select>
+    <button data-act="refreshDevices" title="Apparaten verversen">🔄</button></div>
+    ${deviceId === 'web' && sdkStatus ? `<div class="small muted" style="margin-top:4px">${esc(sdkStatus)}</div>` : ''}`;
+}
+
+function cardHTML(c, cls = '') {
+  return `<div class="card ${cls}" style="background:${yearColor(c.year)}">
+    <div class="a">${esc(c.artists)}</div><div class="y">${c.year}</div><div class="n">${esc(c.name)}</div></div>`;
+}
+
+function timelineHTML(p) {
+  const cards = p.cards; let h = '';
+  for (let i = 0; i <= cards.length; i++) {
+    if (game.phase === 'listen') h += `<button class="slot ${game.slot === i ? 'sel' : ''}" data-act="slot" data-i="${i}" title="Hier plaatsen">${game.slot === i ? '?' : '+'}</button>`;
+    else if (game.phase === 'reveal' && game.slot === i) h += cardHTML(game.current, game.correct ? 'new' : 'wrong');
+    if (i < cards.length) h += cardHTML(cards[i]);
+  }
+  return `<div class="timeline">${h}</div>`;
+}
+
+function gameHTML() {
+  if (game.phase === 'over') {
+    return `<div class="panel"><div class="winner">🏆 ${esc(game.winner)} wint!</div>
+      ${game.players.map(p => `<h2>${esc(p.name)} — ${p.cards.length} kaarten</h2><div class="timeline">${p.cards.map(c => cardHTML(c)).join('')}</div>`).join('')}
+      <div class="row" style="justify-content:center"><button class="primary big" data-act="newGame">Nieuw spel</button></div></div>`;
+  }
+  const p = curPlayer(), c = game.current;
+  let stage;
+  if (game.phase === 'listen') {
+    stage = `<div class="stage">
+      <div class="disc ${game.playing ? 'spin' : ''}"><span>?</span></div>
+      <div style="flex:1;min-width:220px">
+        <div class="verdict">${esc(p.name)} is aan de beurt</div>
+        <p class="muted" style="margin:4px 0 12px">Luister, raad titel en artiest hardop, en kies waar het nummer in je tijdlijn hoort.</p>
+        <div class="row">
+          ${game.playing ? `<button class="big" data-act="pause">⏸ Pauze</button>` : `<button class="gold big" data-act="play">▶ Speel nummer</button>`}
+          <button class="primary big" data-act="confirm" ${game.slot == null ? 'disabled' : ''}>Bevestig plek</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button data-act="skip" ${p.tokens < 1 ? 'disabled' : ''}>Ander nummer (1 🪙)</button>
+          <button data-act="buy" ${p.tokens < 3 ? 'disabled' : ''}>Koop kaart (3 🪙)</button>
+        </div>
+      </div></div>`;
+  } else {
+    stage = `<div class="stage">
+      ${c.img ? `<img class="cover" src="${esc(c.img)}" alt="">` : `<div class="disc"><span>♪</span></div>`}
+      <div style="flex:1;min-width:220px">
+        <div class="reveal-year">${c.year}</div>
+        <div style="font-size:20px;font-weight:700">${esc(c.name)}</div>
+        <div class="muted">${esc(c.artists)} · <span class="small">${esc(c.album)}</span></div>
+        <div class="verdict ${game.correct ? 'ok' : 'bad'}" style="margin-top:6px">${game.correct ? '✔ Goed geplaatst!' : '✘ Helaas, verkeerde plek'}</div>
+        <div class="row" style="margin-top:10px">
+          <button data-act="guessed" ${game.guessed ? 'disabled' : ''}>${game.guessed ? '+1 🪙 gegeven' : 'Titel + artiest goed geraden (+1 🪙)'}</button>
+          <button data-act="fixYear" title="Spotify geeft soms het jaar van een remaster">Jaar klopt niet?</button>
+          ${game.playing ? `<button data-act="pause">⏸</button>` : `<button data-act="play">▶</button>`}
+          <button class="primary" data-act="next">Volgende beurt →</button>
+        </div>
+      </div></div>`;
+  }
+  const sb = game.players.map((q, i) => `<div class="p ${i === game.turn ? 'cur' : ''}">
+      <div class="row" style="justify-content:space-between"><b>${esc(q.name)}</b><span>${q.cards.length}/${game.target} · ${q.tokens} 🪙</span></div>
+      <div class="bar"><i style="width:${Math.min(100, q.cards.length / game.target * 100)}%"></i></div>
+      <div class="chips">${q.cards.map(k => `<span class="chip" style="background:${yearColor(k.year)}">${k.year}</span>`).join('')}</div></div>`).join('');
+  return `<div class="grid game">
+    <div>
+      <div class="panel">${stage}</div>
+      <div class="panel"><h2>Tijdlijn van ${esc(p.name)}</h2>${timelineHTML(p)}</div>
+    </div>
+    <div>
+      <div class="panel"><h2>Stand</h2><div class="sb">${sb}</div>
+        <p class="small muted" style="margin-bottom:0">Nog ${game.deck.length} nummers in de stapel.</p></div>
+      <div class="panel" id="devices"></div>
+    </div></div>`;
+}
+
+/* ---------------- Opstarten ---------------- */
+(async () => {
+  try { await handleRedirect(); } catch (e) { error = 'Inloggen mislukt: ' + e.message; }
+  if (auth && clientId) {
+    try {
+      me = await api('/me');
+      view = 'lobby';
+      initSdk();
+      loadPlaylists().then(renderPlaylistList).catch(e => { error = 'Kon playlists niet laden: ' + e.message; render(); });
+      refreshDevices();
+    } catch (e) {
+      error = 'Sessie verlopen, log opnieuw in. (' + e.message + ')';
+      auth = null; LS.del('auth'); view = 'setup';
+    }
+  }
+  render();
+})();
+</script>
+</body>
+</html>
