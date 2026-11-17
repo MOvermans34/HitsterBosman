@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tijdmachine</title>
+<style>
+  :root{
+    --bg:#12101c; --panel:#1d1a2b; --panel2:#272339; --text:#f3f0ff; --muted:#a39dbd;
+    --accent:#ff4f8b; --accent2:#ffc23d; --ok:#2fd27a; --bad:#ff5a5a; --line:#38324f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#3a1f5a 0%,transparent 60%),var(--bg);
+    color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+  main{max-width:1100px;margin:0 auto;padding:12px 16px 40px}
+  h1{font-size:26px;margin:6px 0;letter-spacing:.5px}
+  h1 span{color:var(--accent)}
+  h2{font-size:18px;margin:0 0 10px}
+  a{color:var(--accent2)}
+  .muted{color:var(--muted)} .small{font-size:13px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .grid{display:grid;gap:0 12px;grid-template-columns:minmax(0,1fr)}
+  @media(min-width:860px){.grid.two{grid-template-columns:1fr 1fr}.grid.game{grid-template-columns:minmax(0,1fr) 290px}}
+  input[type=text],input[type=number],select{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;font:inherit;min-width:0}
+  input[type=text]{flex:1}
+  input.code{font-size:22px;letter-spacing:6px;text-transform:uppercase;text-align:center;max-width:150px}
+  button{font:inherit;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  button:hover{filter:brightness(1.15)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.gold{background:var(--accent2);border-color:var(--accent2);color:#2a1d00;font-weight:600}
+  button.big{padding:14px 22px;font-size:18px}
+  button.link{background:none;border:0;padding:2px 4px;color:var(--muted);text-decoration:underline}
+  code{background:var(--panel2);padding:2px 6px;border-radius:6px;word-break:break-all}
+  .err{background:#4a1f2a;border:1px solid var(--bad);padding:10px 12px;border-radius:10px;margin:10px 0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);margin-right:5px}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+  .roomcode{font-size:40px;font-weight:800;letter-spacing:8px;color:var(--accent2)}
+  .plist{display:flex;flex-direction:column;gap:6px}
+  .plist .pp{display:flex;align-items:center;gap:8px;background:var(--panel2);border-radius:9px;padding:8px 10px}
+  .plist .pp b{flex:1}
+  .pl-list{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .pl{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer}
+  .pl:last-child{border-bottom:0}
+  .pl img,.pl .ph{width:40px;height:40px;border-radius:6px;object-fit:cover;background:var(--panel2);flex:none}
+  .pl input{width:18px;height:18px;flex:none}
+  .pl .t{flex:1;min-width:0}.pl .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .devbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}
+  .devbar select{max-width:220px}
+  .stage{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .disc{width:120px;height:120px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:42px;font-weight:800;
+    background:repeating-radial-gradient(circle,#111 0 3px,#1c1c1c 3px 6px);border:3px solid #000;position:relative;box-shadow:0 8px 30px #0008}
+  .disc::after{content:"";position:absolute;width:42px;height:42px;border-radius:50%;background:var(--accent)}
+  .disc span{position:relative;z-index:1;color:#fff}
+  .disc.spin{animation:spin 2.4s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cover{width:120px;height:120px;border-radius:12px;object-fit:cover;flex:none;box-shadow:0 8px 30px #0008}
+  .reveal-year{font-size:44px;font-weight:800;line-height:1}
+  .verdict{font-weight:800;font-size:21px}
+  .verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+  .timeline{display:flex;gap:6px;align-items:stretch;overflow-x:auto;padding:8px 2px 14px}
+  .card{flex:none;width:112px;min-height:128px;border-radius:12px;padding:10px 8px;display:flex;flex-direction:column;
+    justify-content:space-between;text-align:center;color:#160f20;box-shadow:0 4px 14px #0006}
+  .card .y{font-size:28px;font-weight:800}
+  .card .a{font-size:12px;font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .card .n{font-size:12px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;opacity:.85}
+  .card.new{outline:4px solid var(--ok);outline-offset:2px}
+  .card.wrong{outline:4px solid var(--bad);outline-offset:2px;opacity:.9}
+  .slot{flex:none;width:34px;min-height:128px;border-radius:10px;border:2px dashed var(--line);background:transparent;color:var(--muted);font-size:20px;padding:0}
+  button.slot:hover{border-color:var(--accent);color:var(--accent)}
+  .slot.sel{width:112px;border:3px solid var(--accent);background:#ff4f8b22;color:var(--accent);font-size:42px;font-weight:800;display:grid;place-items:center}
+  div.slot:not(.sel){width:10px;border-color:transparent}
+  .sb{display:flex;flex-direction:column;gap:8px}
+  .sb .p{background:var(--panel2);border-radius:10px;padding:10px;border:2px solid transparent}
+  .sb .p.cur{border-color:var(--accent)}
+  .bar{height:7px;background:#0005;border-radius:4px;overflow:hidden;margin:6px 0}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .chips{display:flex;flex-wrap:wrap;gap:3px}
+  .chip{font-size:11px;padding:1px 5px;border-radius:5px;color:#160f20;font-weight:700}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000e;color:#fff;padding:10px 16px;border-radius:10px;
+    max-width:90vw;display:none;z-index:9;text-align:center}
+  #offline{position:fixed;top:0;left:0;right:0;background:var(--bad);color:#fff;text-align:center;padding:6px;font-size:14px;display:none;z-index:10}
+  .winner{font-size:32px;font-weight:800;text-align:center;margin:10px 0}
+  ol.steps li{margin-bottom:8px}
+  label.row{cursor:pointer}
+</style>
+</head>
+<body>
+<div id="offline">Verbinding met de server kwijt — opnieuw verbinden…</div>
+<main id="app"></main>
+<div id="toast"></div>
+<script>
+/* =========================================================
+   Tijdmachine — muziek-tijdlijnspel op afstand
+   ========================================================= */
+const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative';
+const REDIRECT = location.origin + location.pathname;
+
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem('tm_' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('tm_' + k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem('tm_' + k); } catch {} }
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const yearColor = y => `hsl(${(((y - 1950) * 5) % 360 + 360) % 360} 85% 72%)`;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 4500); }
+// Zet HTML alleen opnieuw als de 'sleutel' veranderd is (voorkomt dat invoervelden worden gewist)
+function setOnce(el, key, html) { if (el && el.dataset.k !== key) { el.innerHTML = html; el.dataset.k = key; } }
+
+let serverClientId = '';
+let clientId = LS.get('clientId', '');
+let auth = LS.get('auth', null);
+let me = null;                                   // Spotify-profiel
+let conn = LS.get('conn', null);                 // {code, token}
+let ws = null, queue = [], retry = 0;
+let S = null;                                    // spelstatus van de server
+let shell = '';
+let error = '', busy = '';
+let playlists = null, plFilter = '';
+let extraPlaylists = LS.get('extraPlaylists', []);
+let selected = new Set(LS.get('selPlaylists', []));
+let noCompilations = LS.get('noCompilations', true);
+let spotifyOn = LS.get('spotifyOn', true);
+let deviceId = LS.get('deviceId', 'web');
+let webDeviceId = null, sdkPlayer = null, sdkStatus = 'Browserspeler laden…', devices = [];
+let lastPlay = null;
+const urlRoom = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
+
+const effClientId = () => serverClientId || S?.clientId || clientId;
+
+/* ---------------- Spotify ---------------- */
+function b64url(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+async function spotifyLogin() {
+  const id = effClientId();
+  if (!id) return toast('Er is nog geen Spotify Client ID ingesteld.');
+  clientId = id; LS.set('clientId', id);
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  LS.set('verifier', verifier);
+  location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({ response_type: 'code', client_id: id,
+    scope: SCOPES, code_challenge_method: 'S256', code_challenge: challenge, redirect_uri: REDIRECT });
+}
+async function tokenRequest(params) {
+  const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: clientId, ...params }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error_description || j.error || ('Tokenfout ' + r.status));
+  auth = { access: j.access_token, refresh: j.refresh_token || auth?.refresh, expires: Date.now() + (j.expires_in - 60) * 1000 };
+  LS.set('auth', auth);
+}
+async function handleRedirect() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('error')) { error = 'Spotify-koppeling afgebroken: ' + q.get('error'); history.replaceState(null, '', REDIRECT); return; }
+  const code = q.get('code'); if (!code) return;
+  history.replaceState(null, '', REDIRECT);
+  await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT, code_verifier: LS.get('verifier', '') });
+}
+async function getToken() {
+  if (!auth) throw new Error('Niet gekoppeld');
+  if (Date.now() > auth.expires) await tokenRequest({ grant_type: 'refresh_token', refresh_token: auth.refresh });
+  return auth.access;
+}
+async function api(path, opts = {}, retried = false) {
+  const url = path.startsWith('http') ? path : 'https://api.spotify.com/v1' + path;
+  const headers = { Authorization: 'Bearer ' + await getToken() };
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(url, { ...opts, headers });
+  if (r.status === 401 && !retried && auth?.refresh) { auth.expires = 0; return api(path, opts, true); }
+  if (r.status === 204 || r.status === 202) return null;
+  const text = await r.text(); let j = null; try { j = text ? JSON.parse(text) : null; } catch {}
+  if (!r.ok) { const e = new Error(j?.error?.message || text || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+function spotifyLogout() {
+  auth = null; me = null; playlists = null; LS.del('auth');
+  try { sdkPlayer?.disconnect(); } catch {}
+  sdkPlayer = null; webDeviceId = null; window._sdkLoading = false;
+  syncSpotifyFlag(); render();
+}
+async function afterSpotifyLogin() {
+  try { me = await api('/me'); }
+  catch (e) { if (e.status === 401 || e.status === 400) { error = 'Spotify-sessie verlopen, koppel opnieuw.'; auth = null; LS.del('auth'); } else error = 'Spotify: ' + e.message; render(); return; }
+  initSdk(); refreshDevices(); syncSpotifyFlag(); render();
+}
+
+async function loadPlaylists() {
+  const out = []; let next = '/me/playlists?limit=50';
+  while (next) { const j = await api(next); out.push(...(j.items || []).filter(Boolean)); next = j.next; }
+  playlists = out;
+}
+function parsePlaylistId(s) {
+  s = s.trim(); const m = s.match(/playlist[/:]([A-Za-z0-9]{10,})/);
+  return m ? m[1] : (/^[A-Za-z0-9]{10,}$/.test(s) ? s : null);
+}
+function toCard(t) {
+  if (!t || t.type !== 'track' || t.is_local || !t.uri || !t.album) return null;
+  const y = parseInt((t.album.release_date || '').slice(0, 4), 10);
+  if (!y) return null;
+  const fixes = LS.get('yearFixes', {});
+  return { id: t.id, uri: t.uri, name: t.name, artists: (t.artists || []).map(a => a.name).join(', '),
+    year: fixes[t.id] ?? y, album: t.album.name, img: (t.album.images || [])[0]?.url || '',
+    comp: t.album.album_type === 'compilation', dur: t.duration_ms || 0 };
+}
+async function loadPlaylistTracks(id) {
+  const out = [];
+  async function collect(next) {
+    while (next) { const j = await api(next); for (const it of j.items || []) { const c = toCard(it.item || it.track); if (c) out.push(c); } next = j.next; }
+  }
+  try { await collect(`/playlists/${id}/items?limit=50`); }
+  catch (e) { if (e.status === 404 || e.status === 400) { out.length = 0; await collect(`/playlists/${id}/tracks?limit=50`); } else throw e; }
+  return out;
+}
+const playlistName = id => playlists?.find(p => p.id === id)?.name || extraPlaylists.find(p => p.id === id)?.name || id;
+
+/* -------- Afspelen -------- */
+function initSdk() {
+  if (window._sdkLoading) return; window._sdkLoading = true;
+  const create = () => {
+    sdkPlayer = new Spotify.Player({ name: 'Tijdmachine', volume: 0.8, getOAuthToken: cb => getToken().then(cb).catch(() => {}) });
+    sdkPlayer.addListener('ready', ({ device_id }) => { webDeviceId = device_id; sdkStatus = ''; renderDevices(); });
+    sdkPlayer.addListener('not_ready', () => { webDeviceId = null; sdkStatus = 'Browserspeler is offline.'; renderDevices(); });
+    sdkPlayer.addListener('initialization_error', () => { sdkStatus = 'Deze browser kan zelf niet afspelen (bijv. iPhone/Android). Open de Spotify-app, klik 🔄 en kies je telefoon.'; renderDevices(); });
+    sdkPlayer.addListener('authentication_error', ({ message }) => { sdkStatus = 'Spotify-fout: ' + message; renderDevices(); });
+    sdkPlayer.addListener('account_error', () => { sdkStatus = 'Afspelen vereist Spotify Premium.'; renderDevices(); });
+    sdkPlayer.addListener('playback_error', ({ message }) => toast('Afspeelfout: ' + message));
+    sdkPlayer.connect();
+  };
+  if (window.Spotify) return create();
+  window.onSpotifyWebPlaybackSDKReady = create;
+  const s = document.createElement('script'); s.src = 'https://sdk.scdn.co/spotify-player.js'; document.head.appendChild(s);
+}
+async function refreshDevices() {
+  if (!auth) return;
+  try { devices = (await api('/me/player/devices'))?.devices || []; } catch (e) { toast('Apparaten ophalen mislukt: ' + e.message); }
+  renderDevices();
+}
+const targetDevice = () => deviceId === 'web' ? webDeviceId : deviceId;
+const listening = () => !!auth && spotifyOn;
+
+async function playUri(uri, pos) {
+  lastPlay = { uri, pos };
+  if (!listening()) return;
+  const d = targetDevice();
+  if (!d) { toast(deviceId === 'web' ? (sdkStatus || 'Browserspeler is nog niet klaar.') : 'Kies een afspeelapparaat.'); return; }
+  try { await api(`/me/player/play?device_id=${encodeURIComponent(d)}`, { method: 'PUT', body: JSON.stringify({ uris: [uri], position_ms: pos || 0 }) }); }
+  catch (e) {
+    toast(e.status === 404 ? 'Spotify-apparaat niet gevonden. Open Spotify, klik 🔄 en kies het opnieuw.'
+      : e.status === 403 ? 'Spotify weigert afspelen (Premium nodig?)' : 'Afspelen mislukt: ' + e.message);
+  }
+}
+async function pauseLocal() {
+  const d = targetDevice(); if (!listening() || !d) return;
+  try { await api(`/me/player/pause?device_id=${encodeURIComponent(d)}`, { method: 'PUT' }); } catch {}
+}
+function unlockAudio() { try { sdkPlayer?.activateElement?.(); } catch {} }
+
+/* ---------------- Server-verbinding ---------------- */
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onopen = () => {
+    retry = 0; $('#offline').style.display = 'none';
+    if (conn) ws.send(JSON.stringify({ type: 'rejoin', code: conn.code, token: conn.token }));
+    for (const m of queue.splice(0)) ws.send(JSON.stringify(m));
+  };
+  ws.onmessage = e => onMessage(JSON.parse(e.data));
+  ws.onclose = ev => {
+    if (ev.code === 4000) { $('#offline').textContent = 'Dit spel is in een ander tabblad geopend.'; $('#offline').style.display = 'block'; return; }
+    $('#offline').style.display = 'block';
+    setTimeout(connect, Math.min(5000, 400 * 2 ** retry++));
+  };
+}
+function send(m) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); else queue.push(m); }
+
+function onMessage(m) {
+  switch (m.type) {
+    case 'joined':
+      conn = { code: m.code, token: m.token }; LS.set('conn', conn);
+      history.replaceState(null, '', REDIRECT);
+      if (clientId && !serverClientId) send({ type: 'setClientId', clientId });
+      break;
+    case 'state': {
+      const prevPhase = S?.phase;
+      S = m;
+      if (S.clientId && !clientId) { clientId = S.clientId; LS.set('clientId', clientId); }
+      syncSpotifyFlag();
+      if (prevPhase !== S.phase && S.phase === 'lobby' && S.host === S.you && auth && !playlists) loadPlaylists().then(renderPlaylistList).catch(() => {});
+      render(); break;
+    }
+    case 'play': playUri(m.uri, m.pos); break;
+    case 'pause': pauseLocal(); break;
+    case 'toast': toast(m.msg); break;
+    case 'error':
+      if (m.fatal) { conn = null; LS.del('conn'); S = null; render(); }
+      toast(m.msg); break;
+  }
+}
+function syncSpotifyFlag() {
+  if (!S) return;
+  const mine = S.players.find(p => p.id === S.you);
+  if (mine && mine.spotify !== listening()) send({ type: 'setSpotify', on: listening() });
+}
+
+/* ---------------- Acties ---------------- */
+const isHost = () => S && S.host === S.you;
+const activePlayer = () => S?.players[S.turn];
+const canAct = () => S && (S.phase === 'listen' || S.phase === 'reveal') && (activePlayer()?.id === S.you || isHost());
+
+const actions = {
+  create() {
+    const name = $('#name').value.trim(); if (!name) return toast('Vul je naam in.');
+    LS.set('name', name); send({ type: 'create', name, clientId: effClientId() });
+  },
+  join() {
+    const name = $('#name').value.trim(), code = $('#code').value.trim().toUpperCase();
+    if (!name) return toast('Vul je naam in.'); if (code.length !== 4) return toast('De kamercode heeft 4 letters.');
+    LS.set('name', name); send({ type: 'join', code, name });
+  },
+  leave() {
+    if (!confirm('Kamer verlaten?')) return;
+    send({ type: 'leave' }); conn = null; LS.del('conn'); S = null; render();
+  },
+  share() {
+    const url = `${REDIRECT}?room=${S.code}`;
+    if (navigator.share) navigator.share({ title: 'Tijdmachine', text: `Doe mee met mijn muziekspel! Code: ${S.code}`, url }).catch(() => {});
+    else navigator.clipboard?.writeText(url).then(() => toast('Link gekopieerd!'));
+  },
+  copyRedirect() { navigator.clipboard?.writeText(REDIRECT).then(() => toast('Gekopieerd!')); },
+  saveClientId() {
+    const v = $('#clientIdInput').value.trim();
+    if (!/^[a-f0-9]{32}$/i.test(v)) return toast('Dat lijkt geen geldige Client ID (32 tekens).');
+    clientId = v; LS.set('clientId', v); if (S) send({ type: 'setClientId', clientId: v }); render();
+  },
+  spotifyLogin() { spotifyLogin(); },
+  spotifyLogout() { if (confirm('Spotify ontkoppelen op dit apparaat?')) spotifyLogout(); },
+  refreshDevices() { refreshDevices(); },
+  replay() { unlockAudio(); if (lastPlay) playUri(lastPlay.uri, lastPlay.pos); },
+  kick(el) { if (confirm('Speler verwijderen?')) send({ type: 'kick', id: el.dataset.id }); },
+  togglePl(el) {
+    const id = el.dataset.id; selected.has(id) ? selected.delete(id) : selected.add(id);
+    LS.set('selPlaylists', [...selected]); renderPlaylistList();
+  },
+  async addLink() {
+    const id = parsePlaylistId($('#plLink').value);
+    if (!id) return toast('Plak een Spotify-playlistlink, bijv. https://open.spotify.com/playlist/…');
+    let name = 'Playlist ' + id.slice(0, 6) + '…';
+    try { name = (await api(`/playlists/${id}?fields=name`))?.name || name; } catch {}
+    if (!extraPlaylists.some(p => p.id === id) && !playlists?.some(p => p.id === id)) extraPlaylists.push({ id, name });
+    selected.add(id); LS.set('extraPlaylists', extraPlaylists); LS.set('selPlaylists', [...selected]);
+    $('#plLink').value = ''; renderPlaylistList();
+  },
+  start() { unlockAudio(); startGame(); },
+  play() { unlockAudio(); send({ type: 'play' }); },
+  pause() { send({ type: 'pause' }); },
+  slot(el) { send({ type: 'slot', i: +el.dataset.i }); },
+  confirm() { send({ type: 'confirm' }); },
+  guessed() { send({ type: 'guessed' }); },
+  fixYear() {
+    const c = S.current;
+    const y = parseInt(prompt(`Wat is het juiste jaar van "${c.name}" (${c.artists})?`, c.year), 10);
+    if (!(y > 1800 && y < 2200)) return;
+    const fixes = LS.get('yearFixes', {}); fixes[c.id] = y; LS.set('yearFixes', fixes);
+    send({ type: 'fixYear', year: y });
+  },
+  skip() { unlockAudio(); send({ type: 'skip' }); },
+  buy() { send({ type: 'buy' }); },
+  next() { send({ type: 'next' }); },
+  newGame() { if (confirm('Nieuw spel met dezelfde spelers?')) send({ type: 'newGame' }); }
+};
+
+async function startGame() {
+  error = '';
+  if (!selected.size) { error = 'Kies minstens één playlist.'; return render(); }
+  busy = 'Nummers laden…'; renderHostPanel(true);
+  try {
+    let all = [];
+    for (const id of selected) {
+      busy = `Laden: ${playlistName(id)}…`; renderHostPanel(true);
+      try { all.push(...await loadPlaylistTracks(id)); }
+      catch (e) {
+        throw new Error(`Playlist "${playlistName(id)}" kon niet geladen worden (${e.status || ''} ${e.message}).` +
+          (e.status === 403 ? ' Spotify laat hobby-apps vaak alleen playlists lezen die je zelf hebt gemaakt of waaraan je meewerkt. Kopieer de playlist naar je eigen account.' : ''));
+      }
+    }
+    const seen = new Set();
+    let deck = all.filter(c => {
+      const k = (c.name.replace(/\s*[-(].*(remaster|version|edit|live|mono|stereo).*$/i, '') + '|' + c.artists).toLowerCase();
+      if (seen.has(c.id) || seen.has(k)) return false; seen.add(c.id); seen.add(k); return true;
+    });
+    const total = deck.length;
+    if (noCompilations) deck = deck.filter(c => !c.comp);
+    if (deck.length < S.players.length * 2 + 3) throw new Error(`Te weinig bruikbare nummers (${deck.length} van ${total}).` + (noCompilations ? ' Zet "verzamelalbums overslaan" uit of kies meer playlists.' : ' Kies meer playlists.'));
+    send({ type: 'start', deck: deck.map(({ comp, ...c }) => c) });
+  } catch (e) { error = e.message; }
+  busy = ''; render(); renderHostPanel(true);
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (el && !el.disabled && actions[el.dataset.act]) { e.preventDefault(); actions[el.dataset.act](el, e); }
+});
+let settingsTimer;
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'plFilter') { plFilter = t.value.toLowerCase(); renderPlaylistList(); }
+  else if (t.matches('[data-setting]')) {
+    clearTimeout(settingsTimer);
+    settingsTimer = setTimeout(() => send({ type: 'setSettings', settings: {
+      target: $('[data-setting=target]').value, tokens: $('[data-setting=tokens]').value, skipIntro: $('[data-setting=skipIntro]').checked } }), 400);
+  }
+  else if (t.id === 'noComp') { noCompilations = t.checked; LS.set('noCompilations', noCompilations); }
+  else if (t.id === 'spotifyOn') { spotifyOn = t.checked; LS.set('spotifyOn', spotifyOn); syncSpotifyFlag(); renderMusic(); }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'device') { deviceId = e.target.value; LS.set('deviceId', deviceId); }
+  else if (e.target.matches('input[type=checkbox]')) e.target.dispatchEvent(new Event('input', { bubbles: true }));
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'code') actions.join();
+  if (e.key === 'Enter' && e.target.id === 'plLink') actions.addLink();
+});
+
+/* ---------------- Weergave ---------------- */
+function render() {
+  const v = !S ? 'home' : S.phase === 'lobby' ? 'lobby' : 'game';
+  if (shell !== v) {
+    shell = v;
+    $('#app').innerHTML = `<div class="topbar"><h1>⏳ Tijd<span>machine</span></h1><div id="hdr" class="row small muted"></div></div>
+      <div id="error"></div>` + SHELLS[v]();
+  }
+  $('#hdr').innerHTML = S ? `Kamer <b style="color:var(--accent2)">${esc(S.code)}</b> <button class="link" data-act="leave">verlaten</button>` : '';
+  $('#error').innerHTML = error ? `<div class="err">${esc(error)}</div>` : '';
+  UPDATE[v]();
+}
+
+const SHELLS = {
+  home: () => `<div class="grid two">
+    <div class="panel"><h2>Muziekspel op afstand</h2>
+      <p class="muted">Raad uit welk jaar een nummer komt en bouw zo je eigen tijdlijn. Iedereen speelt op zijn eigen telefoon of laptop.</p>
+      <div class="row" style="margin-bottom:12px"><input type="text" id="name" placeholder="Je naam" maxlength="24" value="${esc(LS.get('name', ''))}"></div>
+      <div class="row" style="margin-bottom:14px"><input type="text" id="code" class="code" placeholder="CODE" maxlength="4" value="${esc(urlRoom)}">
+        <button class="gold big" data-act="join">Meedoen</button></div>
+      <p class="muted small" style="margin:0 0 8px">…of start een nieuwe kamer als spelleider:</p>
+      <button class="primary" data-act="create">Nieuwe kamer maken</button>
+    </div>
+    <div class="panel"><h2>Hoe werkt het?</h2>
+      <ol class="steps">
+        <li>De <b>spelleider</b> maakt een kamer, koppelt Spotify en kiest jullie playlists.</li>
+        <li>Vrienden doen mee met de <b>code of link</b>. Zij hebben geen Spotify-account nodig.</li>
+        <li>Muziek horen: de spelleider deelt het geluid in jullie videogesprek, <i>of</i> wie Spotify Premium heeft, koppelt die en hoort het nummer op zijn eigen apparaat.</li>
+        <li>Wie aan de beurt is, legt het nummer op de juiste plek in de tijdlijn. Goed = kaart erbij. Eerste met 10 kaarten wint!</li>
+      </ol></div></div>`,
+  lobby: () => `<div class="panel row" style="justify-content:space-between">
+      <div><div class="muted small">Kamercode</div><div class="roomcode" id="roomcode"></div></div>
+      <button class="gold" data-act="share">📨 Deel uitnodigingslink</button></div>
+    <div class="grid two">
+      <div class="panel"><h2>Spelers</h2><div class="plist" id="players"></div></div>
+      <div class="panel" id="music"></div>
+    </div>
+    <div id="hostPanel"></div>`,
+  game: () => `<div class="grid game">
+      <div><div class="panel" id="stage"></div><div class="panel" id="tlPanel"></div></div>
+      <div><div class="panel"><h2>Stand</h2><div class="sb" id="scores"></div><p class="small muted" id="deckInfo" style="margin-bottom:0"></p></div>
+        <div class="panel" id="music"></div></div></div>`
+};
+
+const UPDATE = {
+  home() {},
+  lobby() {
+    $('#roomcode').textContent = S.code;
+    $('#players').innerHTML = S.players.map(p => `<div class="pp"><span class="dot ${p.online ? 'on' : 'off'}"></span>
+      <b>${esc(p.name)}${p.id === S.you ? ' (jij)' : ''}</b>
+      ${p.id === S.host ? '<span title="Spelleider">👑</span>' : ''}${p.spotify ? '<span title="Hoort muziek via eigen Spotify">🎧</span>' : ''}
+      ${isHost() && p.id !== S.you ? `<button class="link" data-act="kick" data-id="${esc(p.id)}">✕</button>` : ''}</div>`).join('') +
+      `<p class="small muted" style="margin:6px 0 0">🎧 = hoort de muziek via eigen Spotify. Anderen luisteren mee via het gedeelde geluid van het videogesprek.</p>`;
+    renderMusic();
+    renderHostPanel();
+  },
+  game() {
+    renderMusic();
+    renderStage();
+    const ap = activePlayer();
+    $('#scores').innerHTML = S.players.map((q, i) => `<div class="p ${i === S.turn && S.phase !== 'over' ? 'cur' : ''}">
+      <div class="row" style="justify-content:space-between"><b><span class="dot ${q.online ? 'on' : 'off'}"></span>${esc(q.name)}${q.id === S.you ? ' (jij)' : ''}</b>
+      <span>${q.cards.length}/${S.settings.target} · ${q.tokens} 🪙</span></div>
+      <div class="bar"><i style="width:${Math.min(100, q.cards.length / S.settings.target * 100)}%"></i></div>
+      <div class="chips">${q.cards.map(k => `<span class="chip" style="background:${yearColor(k.year)}">${k.year}</span>`).join('')}</div></div>`).join('');
+    $('#deckInfo').textContent = `Nog ${S.deckCount} nummers in de stapel.`;
+    const tl = $('#tlPanel');
+    if (S.phase === 'over') { tl.style.display = 'none'; return; }
+    tl.style.display = '';
+    tl.innerHTML = `<h2>Tijdlijn van ${esc(ap.name)}${ap.id === S.you ? ' (jij)' : ''}</h2>${timelineHTML(ap)}
+      ${S.phase === 'listen' ? `<p class="small muted" style="margin:0">${canAct() ? 'Tik op een + om het nummer daar te leggen.' : `Kijk mee waar ${esc(ap.name)} het nummer legt…`}</p>` : ''}`;
+    if (S.phase === 'listen' && S.slot != null) tl.querySelector('.slot.sel')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }
+};
+
+function cardHTML(c, cls = '') {
+  return `<div class="card ${cls}" style="background:${yearColor(c.year)}"><div class="a">${esc(c.artists)}</div><div class="y">${c.year}</div><div class="n">${esc(c.name)}</div></div>`;
+}
+function timelineHTML(p) {
+  let h = ''; const act = canAct();
+  for (let i = 0; i <= p.cards.length; i++) {
+    if (S.phase === 'listen') {
+      const sel = S.slot === i;
+      h += act ? `<button class="slot ${sel ? 'sel' : ''}" data-act="slot" data-i="${i}">${sel ? '?' : '+'}</button>`
+               : `<div class="slot ${sel ? 'sel' : ''}">${sel ? '?' : ''}</div>`;
+    } else if (S.phase === 'reveal' && S.slot === i) h += cardHTML(S.current, S.correct ? 'new' : 'wrong');
+    if (i < p.cards.length) h += cardHTML(p.cards[i]);
+  }
+  return `<div class="timeline">${h}</div>`;
+}
+
+function renderStage() {
+  const el = $('#stage'), ap = activePlayer(), mine = ap?.id === S.you, act = canAct();
+  const replay = listening() && lastPlay ? `<button class="link" data-act="replay" title="Speel opnieuw af op jouw apparaat">↻ hier opnieuw afspelen</button>` : '';
+  if (S.phase === 'over') {
+    el.innerHTML = `<div class="winner">🏆 ${esc(S.winner)} wint!</div>
+      ${S.players.map(p => `<h2>${esc(p.name)}: ${p.cards.length} kaarten</h2><div class="timeline">${p.cards.map(c => cardHTML(c)).join('')}</div>`).join('')}
+      <div class="row" style="justify-content:center">${isHost() ? `<button class="primary big" data-act="newGame">Nieuw spel</button>` : '<span class="muted">Wachten tot de spelleider een nieuw spel start…</span>'}</div>`;
+    return;
+  }
+  const playBtn = S.playing ? `<button class="big" data-act="pause">⏸ Pauze</button>` : `<button class="gold big" data-act="play">▶ Speel nummer</button>`;
+  if (S.phase === 'listen') {
+    el.innerHTML = `<div class="stage"><div class="disc ${S.playing ? 'spin' : ''}"><span>?</span></div>
+      <div style="flex:1;min-width:210px">
+        <div class="verdict">${mine ? 'Jij bent aan de beurt!' : esc(ap.name) + ' is aan de beurt'}</div>
+        <p class="muted" style="margin:4px 0 12px">${mine ? 'Zeg hardop welk nummer en welke artiest het is, en leg het op de juiste plek.'
+          : act ? `Jij bent de spelleider en kunt namens ${esc(ap.name)} spelen.` : 'Luister mee. Weet jij het jaar?'}</p>
+        ${act ? `<div class="row">${playBtn}<button class="primary big" data-act="confirm" ${S.slot == null ? 'disabled' : ''}>Bevestig plek</button></div>
+          <div class="row" style="margin-top:10px">
+            <button data-act="skip" ${ap.tokens < 1 ? 'disabled' : ''}>Ander nummer (1 🪙)</button>
+            <button data-act="buy" ${ap.tokens < 3 ? 'disabled' : ''}>Koop kaart (3 🪙)</button></div>`
+          : `<div class="muted">${S.playing ? '🎵 Het nummer speelt…' : `Wachten tot ${esc(ap.name)} het nummer start…`}</div>`}
+        <div style="margin-top:6px">${replay}</div>
+      </div></div>`;
+  } else {
+    const c = S.current;
+    const canConfirmGuess = !S.guessed && (!mine || S.players.length === 1 || isHost());
+    el.innerHTML = `<div class="stage">
+      ${c.img ? `<img class="cover" src="${esc(c.img)}" alt="">` : '<div class="disc"><span>♪</span></div>'}
+      <div style="flex:1;min-width:210px">
+        <div class="reveal-year">${c.year}</div>
+        <div style="font-size:20px;font-weight:700">${esc(c.name)}</div>
+        <div class="muted">${esc(c.artists)} · <span class="small">${esc(c.album)}</span></div>
+        <div class="verdict ${S.correct ? 'ok' : 'bad'}" style="margin-top:6px">${S.correct ? '✔ Goed geplaatst!' : '✘ Helaas, verkeerde plek'}</div>
+        <div class="row" style="margin-top:10px">
+          ${S.guessed ? '<span class="muted">+1 🪙 voor titel & artiest</span>'
+            : canConfirmGuess ? `<button data-act="guessed">${esc(ap.name)} raadde titel + artiest (+1 🪙)</button>`
+            : '<span class="small muted">Titel en artiest goed? Laat een medespeler dat bevestigen.</span>'}
+          ${isHost() ? `<button data-act="fixYear" title="Spotify geeft soms het jaar van een remaster">Jaar klopt niet?</button>` : ''}
+        </div>
+        ${act ? `<div class="row" style="margin-top:10px">${S.playing ? '<button data-act="pause">⏸</button>' : '<button data-act="play">▶</button>'}
+          <button class="primary" data-act="next">Volgende beurt →</button></div>` : ''}
+      </div></div>`;
+  }
+}
+
+function renderMusic() {
+  const el = $('#music'); if (!el) return;
+  const id = effClientId();
+  const key = [!!auth, me?.id, spotifyOn, id, isHost()].join('|');
+  let html;
+  if (!id) {
+    html = `<h2>🔊 Muziek</h2>` + (isHost() ? `<p class="muted small">Om met Spotify te spelen heb je eenmalig een Spotify-ontwikkelaarsapp nodig:</p>
+      <ol class="steps small">
+        <li>Ga naar <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> en klik <b>Create app</b>. Vink <b>Web API</b> en <b>Web Playback SDK</b> aan.</li>
+        <li>Redirect URI: <code>${esc(REDIRECT)}</code> <button class="link" data-act="copyRedirect">kopieer</button></li>
+        <li>Plak de <b>Client ID</b> hier:</li></ol>
+      <div class="row"><input type="text" id="clientIdInput" placeholder="Client ID"><button class="primary" data-act="saveClientId">Opslaan</button></div>`
+      : `<p class="muted">De spelleider heeft Spotify nog niet ingesteld. Je kunt meeluisteren via het videogesprek.</p>`);
+  } else if (!auth) {
+    html = `<h2>🔊 Muziek horen</h2>
+      ${isHost() ? `<p>Koppel als spelleider je Spotify om playlists te kiezen en muziek af te spelen.</p>
+        <p class="small muted">Deel daarna in jullie videogesprek (Discord, Meet, Zoom…) je scherm <b>met geluid</b>, zodat spelers zonder Spotify meeluisteren.</p>`
+      : `<p class="muted">Je luistert mee via het geluid dat de spelleider deelt in het videogesprek.</p>
+        <p class="small muted">Heb je Spotify Premium en heeft de spelleider jouw account toegevoegd aan de app? Dan kun je de muziek ook rechtstreeks op je eigen apparaat horen.</p>`}
+      <button class="${isHost() ? 'primary' : ''}" data-act="spotifyLogin">Koppel Spotify</button>`;
+  } else {
+    html = `<h2>🔊 Muziek</h2>
+      <p class="small" style="margin-top:0">Spotify gekoppeld: <b>${esc(me?.display_name || me?.id || '…')}</b> <button class="link" data-act="spotifyLogout">ontkoppelen</button></p>
+      <label class="row" style="margin-bottom:8px"><input type="checkbox" id="spotifyOn" ${spotifyOn ? 'checked' : ''}> Speel de nummers af op dit apparaat</label>
+      <div id="devices"></div>`;
+  }
+  setOnce(el, key, html);
+  renderDevices();
+}
+
+function renderDevices() {
+  const el = $('#devices'); if (!el) return;
+  if (!spotifyOn) { setOnce(el, 'off', '<p class="small muted">Je hoort de muziek nu niet via Spotify.</p>'); return; }
+  const opts = [`<option value="web" ${deviceId === 'web' ? 'selected' : ''}>Deze browser${webDeviceId ? '' : ' (niet klaar)'}</option>`]
+    .concat(devices.filter(d => d.id && d.id !== webDeviceId).map(d => `<option value="${esc(d.id)}" ${deviceId === d.id ? 'selected' : ''}>${esc(d.name)} (${esc(d.type)})</option>`));
+  if (deviceId !== 'web' && !devices.some(d => d.id === deviceId)) opts.push(`<option value="${esc(deviceId)}" selected>Eerder gekozen apparaat</option>`);
+  const dh = `<div class="devbar">Afspelen op <select id="device">${opts.join('')}</select>
+    <button data-act="refreshDevices" title="Apparaten verversen">🔄</button></div>
+    ${deviceId === 'web' && sdkStatus ? `<div class="small muted" style="margin-top:4px">${esc(sdkStatus)}</div>` : ''}
+    <p class="small muted" style="margin-bottom:0">Op een telefoon: open eerst de Spotify-app, klik 🔄 en kies je telefoon. Leg hem omgekeerd neer, anders zie je de titel 🙈</p>`;
+  setOnce(el, dh, dh);   // alleen vervangen bij wijziging, zodat een open keuzelijst niet dichtklapt
+}
+
+function renderHostPanel(force) {
+  const el = $('#hostPanel'); if (!el) return;
+  const host = isHost();
+  const key = [host, !!auth, playlists ? playlists.length : -1, busy].join('|');
+  if (!host) { setOnce(el, key, `<div class="panel muted">Wachten tot de spelleider het spel start…</div>`); return; }
+  if (force) el.dataset.k = '';
+  const s = S.settings;
+  setOnce(el, key, `<div class="grid two">
+    <div class="panel"><h2>Playlists</h2>
+      ${!auth ? '<p class="muted">Koppel eerst Spotify (hierboven) om jullie playlists te kiezen.</p>' : `
+        <div class="row" style="margin-bottom:8px"><input type="text" id="plFilter" placeholder="Zoeken in je playlists…" value="${esc(plFilter)}"></div>
+        <div class="pl-list" id="plList"><div class="pl muted">Playlists laden…</div></div>
+        <div class="row" style="margin-top:8px"><input type="text" id="plLink" placeholder="…of plak een playlistlink"><button data-act="addLink">Toevoegen</button></div>
+        <p class="small muted" id="selCount"></p>`}
+    </div>
+    <div class="panel"><h2>Instellingen</h2>
+      <div class="row" style="margin-bottom:8px"><label>Kaarten om te winnen</label><input type="number" min="3" max="30" data-setting="target" value="${s.target}" style="width:80px"></div>
+      <div class="row" style="margin-bottom:8px"><label>Startmunten per speler</label><input type="number" min="0" max="10" data-setting="tokens" value="${s.tokens}" style="width:80px"></div>
+      <label class="row" style="margin-bottom:6px"><input type="checkbox" data-setting="skipIntro" ${s.skipIntro ? 'checked' : ''}> Intro overslaan</label>
+      <label class="row" style="margin-bottom:14px"><input type="checkbox" id="noComp" ${noCompilations ? 'checked' : ''}> Verzamelalbums overslaan (vaak een fout jaartal)</label>
+      <button class="primary big" data-act="start" ${!auth || busy ? 'disabled' : ''}>${busy ? esc(busy) : 'Start spel ▶'}</button>
+    </div></div>`);
+  renderPlaylistList();
+}
+
+function renderPlaylistList() {
+  const el = $('#plList'); if (!el) return;
+  const sc = $('#selCount');
+  if (sc) sc.textContent = selected.size ? `${selected.size} gekozen: ${[...selected].map(playlistName).join(', ')}` : 'Nog geen playlist gekozen.';
+  if (!playlists) return;
+  const all = [...extraPlaylists.map(p => ({ ...p, extra: true })), ...playlists];
+  const list = all.filter(p => !plFilter || (p.name || '').toLowerCase().includes(plFilter));
+  el.innerHTML = list.length ? list.map(p => {
+    const img = p.images?.[p.images.length - 1]?.url || p.images?.[0]?.url;
+    const count = p.tracks?.total ?? p.items?.total;
+    return `<div class="pl" data-act="togglePl" data-id="${esc(p.id)}"><input type="checkbox" ${selected.has(p.id) ? 'checked' : ''} tabindex="-1">
+      ${img ? `<img src="${esc(img)}" alt="">` : '<div class="ph"></div>'}
+      <div class="t"><b>${esc(p.name)}</b><span class="small muted">${p.extra ? 'via link' : [count != null ? count + ' nummers' : '', p.owner?.display_name ? 'van ' + esc(p.owner.display_name) : ''].filter(Boolean).join(' · ')}</span></div></div>`;
+  }).join('') : '<div class="pl muted">Geen playlists gevonden.</div>';
+}
+
+/* ---------------- Opstarten ---------------- */
+(async () => {
+  try { serverClientId = (await (await fetch('/config')).json()).clientId || ''; } catch {}
+  if (serverClientId) clientId = serverClientId;
+  try { await handleRedirect(); } catch (e) { error = 'Spotify koppelen mislukt: ' + e.message; }
+  if (urlRoom && conn && conn.code !== urlRoom) { conn = null; LS.del('conn'); }  // uitnodiging voor een andere kamer
+  render();
+  connect();
+  if (auth) afterSpotifyLogin().then(() => { if (isHost()) loadPlaylists().then(() => renderHostPanel()).catch(e => toast('Playlists laden mislukt: ' + e.message)); });
+})();
+</script>
+</body>
+</html>
