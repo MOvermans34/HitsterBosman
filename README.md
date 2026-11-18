@@ -8,8 +8,8 @@ Raad uit welk jaar een nummer komt en bouw zo je eigen tijdlijn. Iedereen speelt
 - **Muziek horen**, op twee manieren:
   1. De spelleider deelt in Discord, Google Meet of Zoom het scherm of tabblad **met geluid**.
   2. Wie Spotify Premium heeft én door de spelleider is toegevoegd aan de Spotify-app, klikt op *Koppel Spotify*. Het nummer start dan automatisch op zijn eigen apparaat.
-- Wie aan de beurt is, legt de kaart op het eigen scherm. De anderen zien live mee.
-- Medespelers bevestigen of titel en artiest goed geraden waren (+1 munt).
+- Wie aan de beurt is, vult eerst **artiest en titel** in en legt daarna de kaart op de juiste plek in de tijdlijn. De anderen zien live mee.
+- Artiest én titel goed levert automatisch +1 munt op. Kleine typfouten, hoofdletters, "The" en toevoegingen als "(Remastered)" tellen niet mee. Was het antwoord bijna goed, dan kan een medespeler het toch goed rekenen.
 - Met 1 munt ruil je een nummer in, met 3 munten koop je een kaart. Wie als eerste 10 kaarten heeft, wint.
 - De spelleider kan namens een speler handelen (handig als iemands verbinding wegvalt) en kan een fout jaartal verbeteren.
 - Verbinding kwijt of pagina herladen? Je komt automatisch terug in je kamer.

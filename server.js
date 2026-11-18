@@ -49,7 +49,7 @@ function createRoom(clientId) {
     code: newCode(), hostId: null, clientId: str(clientId, 64), players: [],
     settings: { target: 10, tokens: 2, skipIntro: true },
     phase: 'lobby', deck: [], turn: 0, current: null, slot: null, correct: null,
-    guessed: false, winner: null, playing: false, touched: Date.now()
+    guessed: false, guess: null, guessResult: null, winner: null, playing: false, touched: Date.now()
   };
   rooms.set(room.code, room);
   return room;
@@ -69,6 +69,7 @@ function view(room, me) {
     settings: room.settings, phase: room.phase, turn: room.turn, slot: room.slot,
     correct: room.correct, guessed: room.guessed, winner: room.winner, playing: room.playing,
     deckCount: room.deck.length, current: showCard ? room.current : null,
+    guess: room.guess, guessResult: showCard ? room.guessResult : null,
     players: room.players.map(p => ({ id: p.id, name: p.name, online: !!p.ws, spotify: p.spotify, cards: p.cards, tokens: p.tokens }))
   };
 }
@@ -79,6 +80,45 @@ function toastAll(room, msg, except) { for (const p of room.players) if (p !== e
 
 /* ---------------- Spellogica ---------------- */
 const active = room => room.players[room.turn];
+
+// Antwoord nakijken: hoofdletters, accenten, 'The', '(Remastered)', 'feat.' en kleine typfouten tellen niet mee
+function norm(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\(.*?\)|\[.*?\]/g, ' ')
+    .replace(/\s+-\s+.*$/, ' ')
+    .replace(/\b(feat|ft|featuring)\b.*$/, ' ')
+    .replace(/&|\+/g, ' and ').replace(/\ben\b/g, ' and ')
+    .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/^the /, '').replace(/^de /, '');
+}
+function lev(a, b) {
+  const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = d[0]; d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return d[b.length];
+}
+function similar(guess, answer) {
+  const g = norm(guess), a = norm(answer);
+  if (!g || !a) return false;
+  if (g === a || g.replace(/ /g, '') === a.replace(/ /g, '')) return true;
+  const short = Math.min(g.length, a.length), long = Math.max(g.length, a.length);
+  if (short >= 4 && (a.includes(g) || g.includes(a)) && short / long >= 0.6) return true;
+  return 1 - lev(g, a) / long >= 0.75;
+}
+function gradeGuess(room) {
+  const g = room.guess || {}, c = room.current;
+  const artists = [c.artists, ...String(c.artists).split(/,\s*/)];
+  const artist = !!g.artist && artists.some(a => similar(g.artist, a));
+  const title = !!g.title && similar(g.title, c.name);
+  room.guessResult = { artist, title };
+  if (artist && title && !room.guessed) { room.guessed = true; active(room).tokens++; }
+}
 
 function evaluate(room) {
   const cards = active(room).cards, i = room.slot, y = room.current.year;
@@ -184,26 +224,30 @@ function handle(ws, msg) {
       room.deck = deck;
       for (const p of room.players) { p.cards = [deck.pop()]; p.tokens = room.settings.tokens; }
       room.turn = crypto.randomInt(room.players.length);
-      Object.assign(room, { phase: 'listen', current: deck.pop(), slot: null, correct: null, guessed: false, winner: null, playing: false });
+      Object.assign(room, { phase: 'listen', current: deck.pop(), slot: null, correct: null, guessed: false, guess: null, guessResult: null, winner: null, playing: false });
       break;
     }
     case 'play': if (!canAct) return; startMusic(room); break;
     case 'pause': if (!canAct) return; stopMusic(room); break;
+    case 'guess':
+      if (!canAct || room.phase !== 'listen' || room.guess) return;
+      room.guess = { artist: str(msg.artist, 80).trim(), title: str(msg.title, 120).trim() };
+      break;
     case 'slot': {
-      if (!canAct || room.phase !== 'listen') return;
+      if (!canAct || room.phase !== 'listen' || !room.guess) return;
       const i = parseInt(msg.i, 10);
       if (i >= 0 && i <= cur.cards.length) room.slot = i;
       break;
     }
     case 'confirm':
-      if (!canAct || room.phase !== 'listen' || room.slot == null) return;
-      evaluate(room); room.phase = 'reveal';
+      if (!canAct || room.phase !== 'listen' || room.slot == null || !room.guess) return;
+      evaluate(room); gradeGuess(room); room.phase = 'reveal';
       break;
     case 'guessed':
       if (room.phase !== 'reveal' || room.guessed) return;
       if (cur === me && room.players.length > 1 && !isHost) return err('De andere spelers moeten dit bevestigen 😉');
       room.guessed = true; cur.tokens++;
-      toastAll(room, `${cur.name} kreeg een munt (bevestigd door ${me.name})`);
+      toastAll(room, `${me.name} rekent het antwoord van ${cur.name} toch goed: +1 munt`);
       break;
     case 'fixYear': {
       if (!isHost || room.phase !== 'reveal') return;
@@ -214,7 +258,7 @@ function handle(ws, msg) {
     }
     case 'skip': {
       if (!canAct || room.phase !== 'listen' || cur.tokens < 1) return;
-      cur.tokens--; room.slot = null;
+      cur.tokens--; room.slot = null; room.guess = null;
       const was = room.playing; room.playing = false;
       if (drawNext(room) && was) startMusic(room);
       toastAll(room, `${cur.name} ruilt het nummer in (1 munt)`);
@@ -236,7 +280,7 @@ function handle(ws, msg) {
       stopMusic(room);
       if (cur.cards.length >= room.settings.target) { endGame(room, cur.name); break; }
       room.turn = (room.turn + 1) % room.players.length;
-      Object.assign(room, { slot: null, correct: null, guessed: false, phase: 'listen' });
+      Object.assign(room, { slot: null, correct: null, guessed: false, guess: null, guessResult: null, phase: 'listen' });
       drawNext(room);
       break;
     }
