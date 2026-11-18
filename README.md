@@ -1,4 +1,4 @@
-# Tijdmachine – muziek-tijdlijnspel op afstand
+# Hitser op z'n Bosmans – muziek-tijdlijnspel op afstand
 
 Raad uit welk jaar een nummer komt en bouw zo je eigen tijdlijn. Iedereen speelt op zijn eigen telefoon of laptop, en de muziek komt uit jullie Spotify-playlists.
 

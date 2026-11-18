@@ -1,4 +1,4 @@
-// Tijdmachine — server voor het spelen op afstand.
+// Hitser op z'n Bosmans — server voor het spelen op afstand.
 // Serveert de webpagina en houdt kamers + spelstatus bij via WebSockets.
 const http = require('http');
 const fs = require('fs');
@@ -332,4 +332,4 @@ setInterval(() => {
   for (const [code, room] of rooms) if (room.touched < cutoff && !room.players.some(p => p.ws)) rooms.delete(code);
 }, 10 * 60 * 1000);
 
-server.listen(PORT, () => console.log(`Tijdmachine draait op http://127.0.0.1:${PORT}`));
+server.listen(PORT, () => console.log(`Hitser op z'n Bosmans draait op http://127.0.0.1:${PORT}`));

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tijdmachine</title>
+<title>Hitser op z'n Bosmans</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Monoton&family=Nunito:wght@400;700;800&family=Righteous&display=swap" rel="stylesheet">
@@ -174,7 +174,7 @@
 <div id="toast"></div>
 <script>
 /* =========================================================
-   Tijdmachine — muziek-tijdlijnspel op afstand
+   Hitser op z'n Bosmans — muziek-tijdlijnspel op afstand
    ========================================================= */
 const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative';
 const REDIRECT = location.origin + location.pathname;
@@ -311,7 +311,7 @@ const playlistName = id => playlists?.find(p => p.id === id)?.name || extraPlayl
 function initSdk() {
   if (window._sdkLoading) return; window._sdkLoading = true;
   const create = () => {
-    sdkPlayer = new Spotify.Player({ name: 'Tijdmachine', volume: 0.8, getOAuthToken: cb => getToken().then(cb).catch(() => {}) });
+    sdkPlayer = new Spotify.Player({ name: 'Hitser op z\'n Bosmans', volume: 0.8, getOAuthToken: cb => getToken().then(cb).catch(() => {}) });
     sdkPlayer.addListener('ready', ({ device_id }) => { webDeviceId = device_id; sdkStatus = ''; renderDevices(); });
     sdkPlayer.addListener('not_ready', () => { webDeviceId = null; sdkStatus = 'Browserspeler is offline.'; renderDevices(); });
     sdkPlayer.addListener('initialization_error', () => { sdkStatus = 'Deze browser kan zelf niet afspelen (bijv. iPhone/Android). Open de Spotify-app, klik 🔄 en kies je telefoon.'; renderDevices(); });
@@ -444,7 +444,7 @@ const actions = {
   },
   share() {
     const url = `${REDIRECT}?room=${S.code}`;
-    if (navigator.share) navigator.share({ title: 'Tijdmachine', text: `Doe mee met mijn muziekspel! Code: ${S.code}`, url }).catch(() => {});
+    if (navigator.share) navigator.share({ title: 'Hitser op z\'n Bosmans', text: `Doe mee met Hitser op z'n Bosmans! Code: ${S.code}`, url }).catch(() => {});
     else navigator.clipboard?.writeText(url).then(() => toast('Link gekopieerd!'));
   },
   copyRedirect() { navigator.clipboard?.writeText(REDIRECT).then(() => toast('Gekopieerd!')); },
@@ -557,7 +557,7 @@ function render() {
   const v = !S ? 'home' : S.phase === 'lobby' ? 'lobby' : 'game';
   if (shell !== v) {
     shell = v;
-    $('#app').innerHTML = `<header class="topbar"><h1 class="logo">Tijdmachine<small>muziek-jukebox</small></h1><div id="hdr" class="row small muted"></div></header>
+    $('#app').innerHTML = `<header class="topbar"><h1 class="logo">Hitser<small>op z'n Bosmans</small></h1><div id="hdr" class="row small muted"></div></header>
       <div id="error"></div>` + SHELLS[v]();
   }
   $('#hdr').innerHTML = S ? `Kamer <b style="color:var(--amber);font-family:Righteous,sans-serif;letter-spacing:2px">${esc(S.code)}</b> <button class="link" data-act="leave">verlaten</button>` : '';
