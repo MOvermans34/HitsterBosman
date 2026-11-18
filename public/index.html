@@ -32,6 +32,8 @@
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
   button.gold{background:var(--accent2);border-color:var(--accent2);color:#2a1d00;font-weight:600}
   button.big{padding:14px 22px;font-size:18px}
+  a.btn{display:inline-block;text-decoration:none;border-radius:10px;padding:10px 14px;font-weight:600}
+  a.btn.gold{background:var(--accent2);color:#2a1d00}
   button.link{background:none;border:0;padding:2px 4px;color:var(--muted);text-decoration:underline}
   code{background:var(--panel2);padding:2px 6px;border-radius:6px;word-break:break-all}
   .err{background:#4a1f2a;border:1px solid var(--bad);padding:10px 12px;border-radius:10px;margin:10px 0}
@@ -125,7 +127,10 @@ let extraPlaylists = LS.get('extraPlaylists', []);
 let selected = new Set(LS.get('selPlaylists', []));
 let noCompilations = LS.get('noCompilations', true);
 let spotifyOn = LS.get('spotifyOn', true);
-let deviceId = LS.get('deviceId', 'web');
+// Op telefoons/tablets kan de browser zelf geen Spotify afspelen: dan altijd via de Spotify-app.
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let deviceId = LS.get('deviceId', IS_MOBILE ? '' : 'web');
+if (IS_MOBILE && deviceId === 'web') deviceId = '';
 let webDeviceId = null, sdkPlayer = null, sdkStatus = 'Browserspeler laden…', devices = [];
 let lastPlay = null;
 const urlRoom = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
@@ -183,8 +188,14 @@ function spotifyLogout() {
 }
 async function afterSpotifyLogin() {
   try { me = await api('/me'); }
-  catch (e) { if (e.status === 401 || e.status === 400) { error = 'Spotify-sessie verlopen, koppel opnieuw.'; auth = null; LS.del('auth'); } else error = 'Spotify: ' + e.message; render(); return; }
-  initSdk(); refreshDevices(); syncSpotifyFlag(); render();
+  catch (e) {
+    error = e.status === 403 ? 'Dit Spotify-account is nog niet toegevoegd aan de app. Vraag de beheerder om je toe te voegen (Spotify-dashboard → User Management) en koppel daarna opnieuw.'
+      : e.status === 401 || e.status === 400 ? 'Spotify-sessie verlopen, koppel opnieuw.' : 'Spotify: ' + e.message;
+    auth = null; LS.del('auth'); syncSpotifyFlag(); render(); return;
+  }
+  error = '';
+  if (!IS_MOBILE) initSdk(); else sdkStatus = '';
+  refreshDevices(); syncSpotifyFlag(); render();
 }
 
 async function loadPlaylists() {
@@ -236,22 +247,50 @@ function initSdk() {
 async function refreshDevices() {
   if (!auth) return;
   try { devices = (await api('/me/player/devices'))?.devices || []; } catch (e) { toast('Apparaten ophalen mislukt: ' + e.message); }
+  autoPickDevice();
   renderDevices();
 }
+// Kies vanzelf een apparaat als het gekozen apparaat er (nog) niet is
+function autoPickDevice() {
+  const real = devices.filter(d => d.id && d.id !== webDeviceId && !d.is_restricted);
+  if (deviceId === 'web' && !IS_MOBILE) return;
+  if (deviceId && real.some(d => d.id === deviceId)) return;
+  const pick = real.find(d => d.is_active) || real.find(d => /smartphone/i.test(d.type)) || real[0];
+  if (pick) { deviceId = pick.id; LS.set('deviceId', deviceId); }
+  else if (!IS_MOBILE) deviceId = 'web';
+}
 const targetDevice = () => deviceId === 'web' ? webDeviceId : deviceId;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const listening = () => !!auth && spotifyOn;
 
 async function playUri(uri, pos) {
   lastPlay = { uri, pos };
   if (!listening()) return;
-  const d = targetDevice();
-  if (!d) { toast(deviceId === 'web' ? (sdkStatus || 'Browserspeler is nog niet klaar.') : 'Kies een afspeelapparaat.'); return; }
-  try { await api(`/me/player/play?device_id=${encodeURIComponent(d)}`, { method: 'PUT', body: JSON.stringify({ uris: [uri], position_ms: pos || 0 }) }); }
-  catch (e) {
-    toast(e.status === 404 ? 'Spotify-apparaat niet gevonden. Open Spotify, klik 🔄 en kies het opnieuw.'
-      : e.status === 403 ? 'Spotify weigert afspelen (Premium nodig?)' : 'Afspelen mislukt: ' + e.message);
+  const body = JSON.stringify({ uris: [uri], position_ms: pos || 0 });
+  const tryPlay = d => api(`/me/player/play${d ? '?device_id=' + encodeURIComponent(d) : ''}`, { method: 'PUT', body });
+  let d = targetDevice();
+  if (!d) { await refreshDevices(); d = targetDevice(); }
+  try {
+    if (!d) throw Object.assign(new Error('geen apparaat'), { status: 404 });
+    await tryPlay(d);
+  } catch (e) {
+    if (e.status === 403) return toast('Spotify weigert afspelen. Is dit een Premium-account?');
+    if (e.status !== 404) return toast('Afspelen mislukt: ' + e.message);
+    // Apparaat ingeslapen of weg: lijst verversen, apparaat 'wakker' maken en opnieuw proberen
+    try {
+      await refreshDevices(); d = targetDevice();
+      if (d && d !== webDeviceId) { await api('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [d], play: false }) }).catch(() => {}); await sleep(600); }
+      await tryPlay(d);
+    } catch (e2) {
+      toast(IS_MOBILE ? 'Geen geluid? Tik op "Open Spotify-app", start en pauzeer daar kort een nummer, kom terug en tik op ↻ hier opnieuw afspelen.'
+        : 'Spotify-apparaat niet gevonden. Open Spotify, klik 🔄 en kies het opnieuw.');
+      renderDevices(); renderStageSafe();
+    }
   }
 }
+function renderStageSafe() { if (S && S.phase !== 'lobby' && $('#stage')) renderStage(); }
+// Terug in de browser na de Spotify-app geopend te hebben: apparaten opnieuw ophalen
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && auth) refreshDevices(); });
 async function pauseLocal() {
   const d = targetDevice(); if (!listening() || !d) return;
   try { await api(`/me/player/pause?device_id=${encodeURIComponent(d)}`, { method: 'PUT' }); } catch {}
@@ -592,13 +631,22 @@ function renderMusic() {
 function renderDevices() {
   const el = $('#devices'); if (!el) return;
   if (!spotifyOn) { setOnce(el, 'off', '<p class="small muted">Je hoort de muziek nu niet via Spotify.</p>'); return; }
-  const opts = [`<option value="web" ${deviceId === 'web' ? 'selected' : ''}>Deze browser${webDeviceId ? '' : ' (niet klaar)'}</option>`]
-    .concat(devices.filter(d => d.id && d.id !== webDeviceId).map(d => `<option value="${esc(d.id)}" ${deviceId === d.id ? 'selected' : ''}>${esc(d.name)} (${esc(d.type)})</option>`));
-  if (deviceId !== 'web' && !devices.some(d => d.id === deviceId)) opts.push(`<option value="${esc(deviceId)}" selected>Eerder gekozen apparaat</option>`);
-  const dh = `<div class="devbar">Afspelen op <select id="device">${opts.join('')}</select>
-    <button data-act="refreshDevices" title="Apparaten verversen">🔄</button></div>
-    ${deviceId === 'web' && sdkStatus ? `<div class="small muted" style="margin-top:4px">${esc(sdkStatus)}</div>` : ''}
-    <p class="small muted" style="margin-bottom:0">Op een telefoon: open eerst de Spotify-app, klik 🔄 en kies je telefoon. Leg hem omgekeerd neer, anders zie je de titel 🙈</p>`;
+  const real = devices.filter(d => d.id && d.id !== webDeviceId);
+  const opts = (IS_MOBILE ? [] : [`<option value="web" ${deviceId === 'web' ? 'selected' : ''}>Deze browser${webDeviceId ? '' : ' (niet klaar)'}</option>`])
+    .concat(real.map(d => `<option value="${esc(d.id)}" ${deviceId === d.id ? 'selected' : ''}>${esc(d.name)} (${esc(d.type)})</option>`));
+  if (deviceId && deviceId !== 'web' && !real.some(d => d.id === deviceId)) opts.push(`<option value="${esc(deviceId)}" selected>Eerder gekozen apparaat</option>`);
+  if (!opts.length) opts.push('<option value="">Nog geen apparaat gevonden</option>');
+  const dh = IS_MOBILE
+    ? `<div class="small" style="margin-bottom:8px"><b>Op je telefoon komt het geluid uit de Spotify-app:</b>
+        <ol class="small" style="margin:6px 0;padding-left:20px">
+          <li>Tik op <b>Open Spotify-app</b>, start daar een nummer en pauzeer het meteen.</li>
+          <li>Kom terug naar dit scherm; je telefoon wordt dan vanzelf gekozen.</li></ol></div>
+      <div class="devbar"><a href="spotify:" class="btn gold">Open Spotify-app</a>
+        <select id="device">${opts.join('')}</select><button data-act="refreshDevices" title="Apparaten verversen">🔄</button></div>
+      <p class="small muted" style="margin-bottom:0">Leg je telefoon omgekeerd neer, anders zie je de titel 🙈</p>`
+    : `<div class="devbar">Afspelen op <select id="device">${opts.join('')}</select>
+        <button data-act="refreshDevices" title="Apparaten verversen">🔄</button></div>
+      ${deviceId === 'web' && sdkStatus ? `<div class="small muted" style="margin-top:4px">${esc(sdkStatus)}</div>` : ''}`;
   setOnce(el, dh, dh);   // alleen vervangen bij wijziging, zodat een open keuzelijst niet dichtklapt
 }
 
